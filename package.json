@@ -1,0 +1,20 @@
+{
+  "name": "guessong",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/normalize-lockfile.mjs",
+    "dev": "trap 'kill 0' EXIT; npm run dev -w backend & npm run dev -w frontend & wait",
+    "dev:backend": "npm run dev -w backend",
+    "dev:frontend": "npm run dev -w frontend",
+    "build": "npm run build -w frontend",
+    "serve": "trap 'kill 0' EXIT; npm run start -w backend & npm run serve -w frontend & wait",
+    "test": "node scripts/normalize-lockfile.mjs --check && npm run test -w backend",
+    "typecheck": "tsc -p backend --noEmit && tsc -p frontend --noEmit"
+  }
+}

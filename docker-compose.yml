@@ -1,0 +1,17 @@
+# Local Postgres for development. Start it with `docker compose up -d`.
+# Credentials come from .env (see .env.example), so none are written here.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-guessong}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-guessong}
+    # Bound to this machine only, so the database isn't reachable from the network.
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
