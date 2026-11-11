@@ -241,8 +241,10 @@ and the WebSocket from a single address. It must be exactly one instance, becaus
 games are held in memory. Free tiers that put the server to sleep would drop every game
 in progress, so don't use them.
 
-The repo is set up for [Railway](https://railway.com) (`railway.json`): it builds with
-`npm ci --include=dev && npm run build`, starts with `npm start`, checks `/health`, and
+The repo is set up for [Railway](https://railway.com) (`railway.json`): Railway installs
+the packages itself, then builds with `npm run build` (running `npm ci` again in the build
+step fails, because Railway keeps a cache folder locked inside `node_modules`), starts
+with `npm start`, checks `/health`, and
 pins one replica. Node 24 comes from `engines` in `package.json`. Any host that runs a
 Node 24 web service with WebSockets works the same way.
 
