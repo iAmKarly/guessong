@@ -124,6 +124,18 @@ export function removePlayer(room: Room, playerId: string): boolean {
 }
 
 /**
+ * Players needed to start a game: config.minPlayers, unless the MIN_PLAYERS
+ * environment variable says otherwise. MIN_PLAYERS=1 lets one person play a
+ * whole game, to test a deployment without a second account.
+ */
+export function minPlayers(): number {
+  const override = Number(process.env.MIN_PLAYERS);
+  return Number.isInteger(override) && override >= 1 && override <= config.maxPlayers
+    ? override
+    : config.minPlayers;
+}
+
+/**
  * Whether `playerId` may start this room's game. Returns an error message, or
  * null when it's allowed.
  */
@@ -132,8 +144,9 @@ export function startBlockedReason(room: Room, playerId: string): string | null 
   if (room.status !== 'LOBBY' && room.status !== 'FINISHED') {
     return 'The game is already running';
   }
-  if (connectedPlayers(room).length < config.minPlayers) {
-    return `You need at least ${config.minPlayers} players`;
+  const needed = minPlayers();
+  if (connectedPlayers(room).length < needed) {
+    return `You need at least ${needed} player${needed === 1 ? '' : 's'}`;
   }
   return null;
 }
@@ -164,7 +177,7 @@ export function publicState(room: Room, youId: string): RoomState {
     status: room.status,
     hostId: room.hostId,
     players: [...room.players.values()],
-    minPlayers: config.minPlayers,
+    minPlayers: minPlayers(),
     maxPlayers: config.maxPlayers,
     youId,
     categoryId: room.categoryId,

@@ -266,6 +266,9 @@ Node 24 web service with WebSockets works the same way.
    | `DATABASE_URL` | The reference from step 2 |
 
    Railway sets `PORT` itself. Do **not** set `ALLOW_GUESTS`.
+
+   **Testing alone:** add `MIN_PLAYERS=1` and redeploy to play a whole game by yourself.
+   Remove it and redeploy to go back to the normal minimum of 2.
 4. **Get an address.** App service → Settings → Networking → Generate Domain. You get
    something like `guessong-production.up.railway.app`.
 5. **Check it's alive:** open `https://<your-domain>/health`; it should say `"ok":true`.

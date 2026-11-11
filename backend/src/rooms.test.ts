@@ -142,3 +142,20 @@ test('dropped players keep their seat but do not count towards starting', () => 
   assert.match(startBlockedReason(room, 'a') ?? '', /at least/);
   assert.equal(publicState(room, 'a').players.find((p) => p.id === 'b')!.connected, false);
 });
+
+test('MIN_PLAYERS lets one person start a game, and nonsense values are ignored', () => {
+  const room = getRoom('c1');
+  addPlayer(room, player('a'));
+  try {
+    process.env.MIN_PLAYERS = '1';
+    assert.equal(startBlockedReason(room, 'a'), null);
+    assert.equal(publicState(room, 'a').minPlayers, 1, 'the lobby is told too');
+
+    for (const bad of ['0', '-1', 'two', '1.5', '999']) {
+      process.env.MIN_PLAYERS = bad;
+      assert.match(startBlockedReason(room, 'a') ?? '', /at least 2/, bad);
+    }
+  } finally {
+    delete process.env.MIN_PLAYERS;
+  }
+});

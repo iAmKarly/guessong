@@ -17,6 +17,7 @@ import {
   getRoom,
   publicState,
   removePlayer,
+  minPlayers,
   setCategory,
   setConnected,
   startBlockedReason,
@@ -32,6 +33,9 @@ console.log(
     ? '[auth] guest players ALLOWED — development only, never expose this publicly'
     : '[auth] Discord sign-in required; guest players are off',
 );
+if (minPlayers() !== config.minPlayers) {
+  console.log(`[game] MIN_PLAYERS=${minPlayers()} — games can start with fewer players (testing)`);
+}
 console.log(
   canVerifyInstances()
     ? '[auth] lobby membership checked with Discord'
