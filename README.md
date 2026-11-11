@@ -251,7 +251,8 @@ Node 24 web service with WebSockets works the same way.
 ### Railway, step by step
 
 1. **Create the project.** railway.com → New Project → Deploy from GitHub repo →
-   `iAmKarly/guessong`. Railway reads `railway.json` and deploys on every push to `main`.
+   `iAmKarly/guessong`. If the repo isn't listed, install Railway's GitHub app for it
+   (the "Configure GitHub App" link on that screen). Railway reads `railway.json`.
 2. **Add Postgres.** In the project, New → Database → PostgreSQL. Railway creates a
    `DATABASE_URL`; reference it from the app service (Variables → Add Reference →
    `DATABASE_URL`). Migrations run automatically on start.
@@ -283,11 +284,20 @@ To let friends play while the app is unpublished, add them under **App Testers**
 app stays out of Discord's App Directory until you choose to submit it, and you should
 settle the music licensing question (see "Audio and licensing") before doing that.
 
-### On every deploy
+### Deploying an update
 
-Pushing to `main` redeploys. The old server shuts down cleanly (it finishes database
-writes first), but **games in progress end**: players see "Connection lost", reconnect
-to the new server, and land in a fresh lobby. Deploy when nobody's mid-game.
+Deploys are **manual**, on purpose: every deploy ends the games in progress, so you pick
+a moment when nobody's playing. Automatic deployments are switched off in Railway.
+
+1. Push to GitHub.
+2. Railway → **guessong** service → **Deployments** → **Deploy latest commit** (or
+   Cmd+K → "deploy").
+3. Check the new deployment shows your latest commit message (`git log --oneline -1`).
+4. Check `https://<your-domain>/health` says `"ok":true`.
+
+The old server shuts down cleanly (it finishes database writes first), but games in
+progress end: players see "Connection lost", reconnect to the new server, and land in a
+fresh lobby.
 
 ## Layout
 
@@ -421,6 +431,14 @@ in each instance** before letting a player into its lobby, so nobody can join a 
 they weren't part of, even if they learned its ID. Without the bot token, the client's
 word is taken on trust, and the server says so at startup. Set it for any real
 deployment.
+
+### Known dependency warning
+
+`npm install` reports a high-severity issue in **zod**, which is bundled inside Discord's
+own `@discord/embedded-app-sdk`. It's a memory-exhaustion bug when validating oversized
+input, and the only input that code validates is messages from Discord itself, so the
+real risk is very low. There's no fix until Discord updates its SDK; forcing a newer zod
+could break the SDK. Check `npm audit` after updating the SDK.
 
 ## Tests
 
