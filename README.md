@@ -449,3 +449,12 @@ Nothing here downloads from Spotify, YouTube or similar services, or rips their 
     (still no accounts), lobby codes such as `guessong.app/K7QM`, and abuse limits.
     Mostly `identity.ts` and a sign-in screen; the game itself doesn't change. Settle
     the music licensing question first, since a public website is far more visible
+
+## License
+
+The code is released under the [MIT License](LICENSE): anyone may use, copy, modify and
+distribute it, provided the copyright notice is kept.
+
+This covers **the code only**. Songs, previews and album art belong to their rights
+holders and are streamed through Deezer under Deezer's terms; the MIT License grants no
+rights to any of that content.

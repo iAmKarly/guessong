@@ -192,6 +192,9 @@ async function handleJoin(
   guestName: string | null,
   guestId: string | null,
 ) {
+  // One line per join, so sign-in problems are visible in the terminal.
+  console.log(`[join] room ${roomId.slice(0, 8)}… ${accessToken ? 'with a Discord token' : 'as a guest (no Discord token)'}`);
+
   let player;
   try {
     player = await resolvePlayer(accessToken, guestName, guestId);

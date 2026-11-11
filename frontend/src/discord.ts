@@ -22,6 +22,8 @@ export const isInDiscord = new URLSearchParams(location.search).has('frame_id');
 const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID as string | undefined;
 
 export async function startSession(): Promise<Session> {
+  // Shown in the browser console, to tell the two sign-in paths apart.
+  console.info(`[guessong] ${isInDiscord ? 'inside Discord' : 'outside Discord'}: ${location.href}`);
   if (!isInDiscord) return localSession();
 
   if (!clientId) throw new Error('VITE_DISCORD_CLIENT_ID is not set in .env');
