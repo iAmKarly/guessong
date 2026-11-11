@@ -51,6 +51,10 @@ VITE_DISCORD_CLIENT_ID=
 # Your cloudflared tunnel hostname, no https://. Only needed inside Discord.
 TUNNEL_HOST=
 
+# Lets the server check with Discord who is in each Activity session.
+# Developer Portal → Bot → Reset Token. Secret, like the client secret.
+DISCORD_BOT_TOKEN=
+
 # Postgres. Leave empty until Milestone 8; see "Database" below.
 POSTGRES_PASSWORD=
 DATABASE_URL=
@@ -124,7 +128,8 @@ Connect with `docker compose exec postgres psql -U guessong` to run queries like
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Backend (:3001) and frontend (:3000) together, both hot-reloading |
-| `npm run serve` | Backend + a **production build** of the frontend on :3000. Use this for testing inside Discord — see below |
+| `npm run serve` | Exactly what production runs: builds the frontend, and the backend serves it all on :3000. Use this for testing inside Discord — see below |
+| `npm start` | Start the backend alone, serving whatever was last built. What the host runs |
 | `npm run dev:backend` / `npm run dev:frontend` | One at a time |
 | `npm test` | Backend tests (`node --test`, no test framework dependency) |
 | `npm run typecheck` | `tsc --noEmit` over both workspaces |
@@ -160,14 +165,16 @@ so one tunnel and one URL mapping cover everything.
 
 **Use `npm run serve`, not `npm run dev`, for in-Discord testing.** Vite's dev server
 relies on `eval` and inline scripts for HMR, and Discord's iframe CSP blocks both. The
-activity will fail to load with CSP errors in the console. `npm run serve` serves a
-real build instead — no HMR, so re-run it after changes.
+activity will fail to load with CSP errors in the console. `npm run serve` builds the
+frontend and has the backend serve it, exactly like production. There's no hot reload,
+so re-run it after changes.
 
 **Discord strips the `/.proxy` prefix before forwarding to your host.** The client
 always requests `/.proxy/api/...` (see `frontend/src/paths.ts`), but the request can
-arrive at the dev server as either `/.proxy/api/...` or `/api/...` The Vite proxy
-matches both forms, so don't "simplify" those duplicate-looking entries in
-`vite.config.ts` — removing either one breaks a real case.
+arrive as either `/.proxy/api/...` or `/api/...`. Both forms must work. In production
+the backend strips the prefix (`stripProxyPrefix` in `backend/src/static.ts`); in
+development the Vite proxy matches both, so don't "simplify" those duplicate-looking
+entries in `vite.config.ts`.
 
 ### Each dev session: tunnel and map
 
@@ -227,6 +234,59 @@ are from memory and the UI moves around. The concepts (app ID, secret, Activitie
 enabled, app installed to the server, root URL mapping to your tunnel) are stable; if a
 label doesn't match, look for the nearest equivalent.
 
+## Deploying
+
+Production is **one always-on service**: the backend serves the built frontend, the API
+and the WebSocket from a single address. It must be exactly one instance, because live
+games are held in memory. Free tiers that put the server to sleep would drop every game
+in progress, so don't use them.
+
+The repo is set up for [Railway](https://railway.com) (`railway.json`): it builds with
+`npm ci --include=dev && npm run build`, starts with `npm start`, checks `/health`, and
+pins one replica. Node 24 comes from `engines` in `package.json`. Any host that runs a
+Node 24 web service with WebSockets works the same way.
+
+### Railway, step by step
+
+1. **Create the project.** railway.com → New Project → Deploy from GitHub repo →
+   `iAmKarly/guessong`. Railway reads `railway.json` and deploys on every push to `main`.
+2. **Add Postgres.** In the project, New → Database → PostgreSQL. Railway creates a
+   `DATABASE_URL`; reference it from the app service (Variables → Add Reference →
+   `DATABASE_URL`). Migrations run automatically on start.
+3. **Set the variables** on the app service:
+
+   | Variable | Value |
+   | --- | --- |
+   | `VITE_DISCORD_CLIENT_ID` | Your Discord Application ID. Needed at **build** time too, since it's baked into the frontend |
+   | `DISCORD_CLIENT_SECRET` | From the Developer Portal, OAuth2 |
+   | `DISCORD_BOT_TOKEN` | From the Developer Portal, Bot → Reset Token |
+   | `DATABASE_URL` | The reference from step 2 |
+
+   Railway sets `PORT` itself. Do **not** set `ALLOW_GUESTS`.
+4. **Get an address.** App service → Settings → Networking → Generate Domain. You get
+   something like `guessong-production.up.railway.app`.
+5. **Check it's alive:** open `https://<your-domain>/health`; it should say `"ok":true`.
+   The deploy logs should show `[db] connected — saving games`, `[auth] Discord sign-in
+   required` and `[auth] lobby membership checked with Discord`.
+
+### Pointing Discord at it
+
+In the Developer Portal → Activities → **URL Mappings**, change the root mapping's target
+from your tunnel to the Railway domain: prefix `/`, target
+`guessong-production.up.railway.app` (no `https://`). Save, fully quit Discord
+(Cmd+Q), reopen and launch. The tunnel is no longer needed, except for testing local
+changes before you push.
+
+To let friends play while the app is unpublished, add them under **App Testers**. The
+app stays out of Discord's App Directory until you choose to submit it, and you should
+settle the music licensing question (see "Audio and licensing") before doing that.
+
+### On every deploy
+
+Pushing to `main` redeploys. The old server shuts down cleanly (it finishes database
+writes first), but **games in progress end**: players see "Connection lost", reconnect
+to the new server, and land in a fresh lobby. Deploy when nobody's mid-game.
+
 ## Layout
 
 ```
@@ -234,6 +294,7 @@ guessong/
 ├─ shared/        types.ts, config.ts — imported by both sides, no build step
 ├─ database/      migrations/ — numbered SQL files
 ├─ docker-compose.yml  local Postgres
+├─ railway.json   how Railway builds, starts and health-checks the app
 ├─ backend/       Node + ws. Authoritative game state lives here.
 │  └─ src/        index.ts     server + socket glue
 │                 game.ts      state machine, timers, round rules
@@ -245,6 +306,7 @@ guessong/
 │                 deezer.ts    real songs from Deezer's public API
 │                 db.ts        Postgres connection + migration runner
 │                 recorder.ts  saves games, rounds and guesses
+│                 static.ts    serves the built frontend in production
 │                 identity.ts  who a player is
 │                 protocol.ts  inbound message validation
 │                 discord.ts   OAuth
@@ -352,10 +414,11 @@ expose `npm run dev` through a tunnel.
 
 **Lobbies are Discord Activity instances.** Everyone who launches the Activity together
 shares Discord's random, unguessable instance ID, and that's the lobby: a lobby code
-nobody has to type. A client still sends that ID itself, so someone who somehow learned
-another session's instance ID could join it as their real Discord self. Closing that
-fully means asking Discord who is in each instance; worth doing before a public launch
-(Milestone 8).
+nobody has to type. With `DISCORD_BOT_TOKEN` set, the server also **asks Discord who is
+in each instance** before letting a player into its lobby, so nobody can join a session
+they weren't part of, even if they learned its ID. Without the bot token, the client's
+word is taken on trust, and the server says so at startup. Set it for any real
+deployment.
 
 ## Tests
 
@@ -369,7 +432,7 @@ admitting reconnecting players, who may start), and the whole round state machin
 by mock timers, plus the audio: Deezer response parsing, WAV output, clip lengths, segment
 bounds, ticket expiry, categories, and what happens when the music server is down. And the
 database: the real migrations and recorder run against `pg-mem`, an in-memory Postgres
-emulator, by playing a whole game and checking every row. 94 tests, no Docker, no
+emulator, by playing a whole game and checking every row. 105 tests, no Docker, no
 network.
 
 One test exists specifically to catch the worst possible bug: it serialises the
@@ -442,8 +505,9 @@ Nothing here downloads from Spotify, YouTube or similar services, or rips their 
 6. **Guessing: typo tolerance, autocomplete, spam protection** ← done
 7. **Polish: reconnecting, 3-2-1 countdown, album art, error states, small windows,
    animations** ← done
-8. Deployment, including setting up Postgres (local Docker and hosted) to start saving
-   games
+8. Deployment: **code ready** (single service, Railway config, Discord session checks,
+   clean shutdown). Still to do, by you: create the Railway project and Postgres, set
+   the variables, and point Discord's URL Mapping at it (see "Deploying")
 9. Document where the guessability model plugs in
 10. Web version, playable outside Discord: nickname plus a server-issued session token
     (still no accounts), lobby codes such as `guessong.app/K7QM`, and abuse limits.

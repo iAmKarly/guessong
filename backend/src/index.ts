@@ -4,13 +4,14 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import type { ServerMessage } from '../../shared/types.ts';
 import { config } from '../../shared/config.ts';
 import { parseClientMessage } from './protocol.ts';
-import { exchangeCode, DiscordAuthError } from './discord.ts';
+import { canVerifyInstances, exchangeCode, isInInstance, DiscordAuthError } from './discord.ts';
+import { DIST, serveStatic, stripProxyPrefix } from './static.ts';
 import { allowGuests, resolvePlayer, IdentityError } from './identity.ts';
 import { endIfEveryoneSolved, extendClip, startGame, stopGame, submitGuess } from './game.ts';
 import { AudioUnavailableError, audioProvider, redeemClip, setAudioProvider } from './audio.ts';
 import { deezerProvider } from './deezer.ts';
 import { migrate, pool } from './db.ts';
-import { enableRecording, recordPlayer } from './recorder.ts';
+import { enableRecording, flushRecording, recordPlayer } from './recorder.ts';
 import {
   addPlayer,
   getRoom,
@@ -30,6 +31,11 @@ console.log(
   allowGuests
     ? '[auth] guest players ALLOWED — development only, never expose this publicly'
     : '[auth] Discord sign-in required; guest players are off',
+);
+console.log(
+  canVerifyInstances()
+    ? '[auth] lobby membership checked with Discord'
+    : '[auth] DISCORD_BOT_TOKEN not set — lobby membership is not checked with Discord',
 );
 
 // The database is optional, and a problem with it must never stop the game.
@@ -119,7 +125,9 @@ async function handleArtwork(src: string | null, res: ServerResponse) {
 }
 
 const http = createServer((req, res) => {
-  const { pathname, searchParams } = new URL(req.url ?? '/', 'http://localhost');
+  const url = new URL(req.url ?? '/', 'http://localhost');
+  const pathname = stripProxyPrefix(url.pathname);
+  const { searchParams } = url;
 
   if (pathname === '/health') {
     json(res, 200, { ok: true, rounds: config.rounds });
@@ -137,6 +145,12 @@ const http = createServer((req, res) => {
     void handleClip(pathname.slice('/api/clip/'.length), res);
     return;
   }
+  if (req.method === 'GET' && !pathname.startsWith('/api/')) {
+    void serveStatic(DIST, pathname, res).then((served) => {
+      if (!served) res.writeHead(404).end();
+    });
+    return;
+  }
   res.writeHead(404).end();
 });
 
@@ -145,7 +159,7 @@ const http = createServer((req, res) => {
 const wss = new WebSocketServer({ noServer: true });
 
 http.on('upgrade', (req, socket, head) => {
-  if (new URL(req.url ?? '/', 'http://localhost').pathname !== '/ws') {
+  if (stripProxyPrefix(new URL(req.url ?? '/', 'http://localhost').pathname) !== '/ws') {
     socket.destroy();
     return;
   }
@@ -203,6 +217,22 @@ async function handleJoin(
     console.error('[join] identity failed:', known ? error.message : error);
     fail(ws, known ? error.message : 'Could not verify your Discord session');
     return;
+  }
+
+  // Inside Discord, the lobby is an Activity instance. If we can, confirm with
+  // Discord that this player is really in it, so nobody can wander into a
+  // session they weren't invited to.
+  if (accessToken && canVerifyInstances()) {
+    let member = false;
+    try {
+      member = await isInInstance(roomId, player.id);
+    } catch (error) {
+      console.error('[join] instance check failed:', (error as Error).message);
+    }
+    if (!member) {
+      fail(ws, "Couldn't confirm you're in this Activity. Try relaunching it from the voice channel.");
+      return;
+    }
   }
 
   // The same socket joining again as the same player (React runs effects twice
@@ -397,3 +427,20 @@ wss.on('connection', (ws) => {
 });
 
 http.listen(port, () => console.log(`Guessong server on http://localhost:${port}`));
+
+/**
+ * Hosts stop the old server on every deploy (SIGTERM). Finish saving to the
+ * database first. Live games are in memory, so they end; players see the
+ * reconnect banner and rejoin the new server's lobby.
+ */
+function shutdown(signal: string) {
+  console.log(`[server] ${signal} received, shutting down`);
+  http.close();
+  for (const client of wss.clients) client.close(1012, 'Server restarting');
+  // Don't hang forever on a stuck database write.
+  const forceExit = setTimeout(() => process.exit(0), 5_000);
+  forceExit.unref();
+  void flushRecording().finally(() => process.exit(0));
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));

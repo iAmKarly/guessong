@@ -23,8 +23,9 @@ export function parseClientMessage(raw: unknown): ClientMessage | null {
 
   switch (message.type) {
     case 'join': {
-      const roomId = str(message.roomId, 64);
-      if (roomId === null) return null;
+      // Discord instance IDs, or 'local'. Long, but only safe characters.
+      const roomId = str(message.roomId, 128);
+      if (roomId === null || !/^[\w-]+$/.test(roomId)) return null;
       return {
         type: 'join',
         roomId,

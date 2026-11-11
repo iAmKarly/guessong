@@ -74,3 +74,10 @@ test('a guest ID must look like an ID, or it is ignored', () => {
     assert.equal((join(bad) as { guestId: unknown }).guestId, null, String(bad));
   }
 });
+
+test('lobby IDs may be long Discord instance IDs, but only safe characters', () => {
+  const join = (roomId: string) => parseClientMessage(JSON.stringify({ type: 'join', roomId }));
+  assert.equal(join('i-1294785123456789012-gc-123456789012345678-987654321098765432')?.type, 'join');
+  assert.equal(join('local')?.type, 'join');
+  for (const bad of ['../x', 'has space', 'a/b', 'x'.repeat(129)]) assert.equal(join(bad), null, bad);
+});

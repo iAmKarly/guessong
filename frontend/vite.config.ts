@@ -52,13 +52,5 @@ export default defineConfig(({ mode }) => {
       hmr: tunnelHost ? { protocol: 'wss', host: tunnelHost, clientPort: 443 } : undefined,
       proxy,
     },
-    // `npm run serve` serves the built bundle here instead. Discord's iframe CSP
-    // blocks the eval and inline scripts Vite's dev server uses for HMR, so
-    // in-Discord testing generally has to run against a real build.
-    preview: {
-      port: 3000,
-      allowedHosts,
-      proxy,
-    },
   };
 });
