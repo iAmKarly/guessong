@@ -80,8 +80,8 @@ test('the chosen segment always fits the longest clip inside a preview', () => {
 // --- Cutting clips ----------------------------------------------------------
 
 const SAMPLE_RATE = 8_000;
-/** Thirty seconds of a loud constant tone, covering the full Deezer preview. */
-const pcm = { samples: new Int16Array(30 * SAMPLE_RATE).fill(10_000), sampleRate: SAMPLE_RATE };
+/** Thirty-one seconds of tone, so a 30-second slice can start at 1 second. */
+const pcm = { samples: new Int16Array(31 * SAMPLE_RATE).fill(10_000), sampleRate: SAMPLE_RATE };
 
 test('a clip is a valid WAV of exactly the requested length', () => {
   for (const duration of config.clipDurations) {
@@ -95,9 +95,10 @@ test('a clip is a valid WAV of exactly the requested length', () => {
 });
 
 test('a clip never runs past the end of the audio', () => {
-  const { data } = cutClip(pcm, 9, 5);
+  const shortPcm = { samples: new Int16Array(10 * SAMPLE_RATE).fill(10_000), sampleRate: SAMPLE_RATE };
+  const { data } = cutClip(shortPcm, 9, 5);
   assert.equal(data.readUInt32LE(40), 1 * SAMPLE_RATE * 2);
-  assert.equal(cutClip(pcm, 50, 5).data.readUInt32LE(40), 0);
+  assert.equal(cutClip(shortPcm, 50, 5).data.readUInt32LE(40), 0);
 });
 
 test('clips fade at the edges, without touching the cached audio', () => {
