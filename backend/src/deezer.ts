@@ -38,6 +38,7 @@ export const SOURCES: Record<string, Source> = {
   rock: { search: 'rock classics' },
   hiphop: { search: 'hip hop hits' },
   dance: { search: 'dance hits' },
+  kpop: { search: 'K-pop hits' },
 };
 
 /** A playlist needs at least this many tracks to be worth picking. */

@@ -80,8 +80,8 @@ test('the chosen segment always fits the longest clip inside a preview', () => {
 // --- Cutting clips ----------------------------------------------------------
 
 const SAMPLE_RATE = 8_000;
-/** Ten seconds of a loud constant tone, so fades and slices are easy to see. */
-const pcm = { samples: new Int16Array(10 * SAMPLE_RATE).fill(10_000), sampleRate: SAMPLE_RATE };
+/** Thirty seconds of a loud constant tone, covering the full Deezer preview. */
+const pcm = { samples: new Int16Array(30 * SAMPLE_RATE).fill(10_000), sampleRate: SAMPLE_RATE };
 
 test('a clip is a valid WAV of exactly the requested length', () => {
   for (const duration of config.clipDurations) {

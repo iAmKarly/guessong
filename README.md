@@ -346,8 +346,9 @@ things: being right (200 base), being fast (up to 300), and needing less of the 
 (up to 200). Maximum 700 in a round.
 
 **Clip length is per player.** Everyone hears the same segment of the same song, but
-each player chooses how much of it to hear. Pressing "hear more" walks up
-`config.clipDurations` and costs you points. The server tracks each player's level, and
+each player chooses how much of it to hear. Everyone starts with a 0.1-second clip;
+pressing "hear more" extends it to 5, 10, 20, then 30 seconds, and costs you points.
+The server tracks each player's level, and
 `publicState` only ever tells you your own.
 
 **Audio never reveals the answer.** When a round starts, each player gets a random
@@ -487,8 +488,8 @@ that fails mid-game shows the same message, and players can keep guessing. There
 fallback music source, by design.
 
 **Categories.** The host picks one in the lobby (or on the final leaderboard, between
-games): top hits right now, a decade from the 80s to the 2020s, or pop, rock, hip-hop or
-dance. "Top hits" is Deezer's live chart. Every other category *searches* Deezer for a
+games): top hits right now, a decade from the 80s to the 2020s, or pop, rock, hip-hop,
+dance or K-pop. "Top hits" is Deezer's live chart. Every other category *searches* Deezer for a
 playlist, such as "2000s hits", preferring Deezer's own editorial playlists, so nothing
 breaks when Deezer retires a playlist.
 

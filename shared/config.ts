@@ -10,7 +10,7 @@ export const config = {
    * Playable clip length per attempt, in seconds. The audio *segment* stays
    * fixed for the round; only how much of it you may hear grows.
    */
-  clipDurations: [0.1, 0.5, 1, 2, 5],
+  clipDurations: [0.1, 5, 10, 20, 30],
 
   minPlayers: 2,
   maxPlayers: 12,
@@ -46,6 +46,7 @@ export const config = {
     { id: 'rock', label: 'Rock' },
     { id: 'hiphop', label: 'Hip-hop' },
     { id: 'dance', label: 'Dance' },
+    { id: 'kpop', label: 'K-pop' },
   ],
 } as const;
 
