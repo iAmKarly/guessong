@@ -19,9 +19,14 @@ leaderboard. Saving games to Postgres is built but switched off until Milestone 
 
 ```bash
 npm install
+npm run hooks:install  # run the test suite before each commit
 cp .env.example .env   # see below if .env.example is missing
 npm run dev
 ```
+
+Run `npm run hooks:install` once in each clone to enable the pre-commit hook. It runs
+`npm test` before every commit; a failing test prevents the commit. CI also runs the
+tests on pushes and pull requests.
 
 Then open <http://localhost:3000>. You should see the Guessong logo, a generated
 "Guest" identity, and a green **Connected** badge. Outside Discord the app invents a
