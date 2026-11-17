@@ -13,7 +13,6 @@
   ],
   "scripts": {
     "postinstall": "node scripts/normalize-lockfile.mjs",
-    "hooks:install": "git config core.hooksPath .githooks",
     "dev": "trap 'kill 0' EXIT; npm run dev -w backend & npm run dev -w frontend & wait",
     "dev:backend": "npm run dev -w backend",
     "dev:frontend": "npm run dev -w frontend",
